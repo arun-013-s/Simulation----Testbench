@@ -1,0 +1,413 @@
+`timescale 1ns / 1ps
+
+module digital_clock_tb;
+
+    // =========================================================
+    // Testbench clock
+    // =========================================================
+    reg clk;
+    reg reset;
+
+    reg mode_btn;
+    reg up_btn;
+    reg down_btn;
+    reg alarm_btn;
+    reg stop_btn;
+
+    wire [6:0] seg;
+    wire [3:0] an;
+    wire dp;
+    wire buzzer;
+    wire alarm_led;
+
+    // =========================================================
+    // Simulation parameters
+    //
+    // Use small values so simulation is fast.
+    // =========================================================
+    localparam CLK_FREQ_SIM = 100;
+    localparam DEBOUNCE_SIM = 3;
+
+    // =========================================================
+    // DUT
+    // =========================================================
+    digital_clock_top #(
+        .CLK_FREQ(CLK_FREQ_SIM),
+        .DEBOUNCE_COUNT(DEBOUNCE_SIM)
+    )
+    dut (
+        .clk(clk),
+        .reset(reset),
+
+        .mode_btn(mode_btn),
+        .up_btn(up_btn),
+        .down_btn(down_btn),
+        .alarm_btn(alarm_btn),
+        .stop_btn(stop_btn),
+
+        .seg(seg),
+        .an(an),
+        .dp(dp),
+
+        .buzzer(buzzer),
+        .alarm_led(alarm_led)
+    );
+
+    // =========================================================
+    // 50 MHz clock
+    //
+    // Period = 20 ns
+    // =========================================================
+    initial begin
+        clk = 1'b0;
+
+        forever #10 clk = ~clk;
+    end
+
+    // =========================================================
+    // Reset
+    // =========================================================
+    initial begin
+
+        reset = 1'b1;
+
+        mode_btn  = 1'b0;
+        up_btn    = 1'b0;
+        down_btn  = 1'b0;
+        alarm_btn = 1'b0;
+        stop_btn  = 1'b0;
+
+        #200;
+
+        reset = 1'b0;
+
+    end
+
+    // =========================================================
+    // Task: press MODE button
+    // =========================================================
+    task press_mode;
+        begin
+
+            mode_btn = 1'b1;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+            mode_btn = 1'b0;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+        end
+    endtask
+
+    // =========================================================
+    // Task: press UP button
+    // =========================================================
+    task press_up;
+        begin
+
+            up_btn = 1'b1;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+            up_btn = 1'b0;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+        end
+    endtask
+
+    // =========================================================
+    // Task: press DOWN button
+    // =========================================================
+    task press_down;
+        begin
+
+            down_btn = 1'b1;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+            down_btn = 1'b0;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+        end
+    endtask
+
+    // =========================================================
+    // Task: press ALARM button
+    // =========================================================
+    task press_alarm;
+        begin
+
+            alarm_btn = 1'b1;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+            alarm_btn = 1'b0;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+        end
+    endtask
+
+    // =========================================================
+    // Task: press STOP button
+    // =========================================================
+    task press_stop;
+        begin
+
+            stop_btn = 1'b1;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+            stop_btn = 1'b0;
+
+            #(DEBOUNCE_SIM * 20 + 40);
+
+        end
+    endtask
+
+    // =========================================================
+    // TEST SEQUENCE
+    // =========================================================
+    initial begin
+
+        // -----------------------------------------------------
+        // Wait for reset
+        // -----------------------------------------------------
+        #300;
+
+        $display("==============================================");
+        $display("DIGITAL CLOCK TEST STARTED");
+        $display("==============================================");
+
+        // -----------------------------------------------------
+        // Test initial values
+        //
+        // Clock = 12:14:55
+        // Alarm = 12:15
+        // Alarm enabled
+        // -----------------------------------------------------
+
+        #100;
+
+        $display("----------------------------------------------");
+        $display("Initial Clock");
+        $display("Hours   = %d", dut.hours);
+        $display("Minutes = %d", dut.minutes);
+        $display("Seconds = %d", dut.seconds);
+
+        $display("----------------------------------------------");
+        $display("Initial Alarm");
+        $display("Alarm Hours   = %d", dut.alarm_hours);
+        $display("Alarm Minutes = %d", dut.alarm_minutes);
+        $display("Alarm Enable  = %b", dut.alarm_enable);
+
+        // -----------------------------------------------------
+        // Let clock advance
+        //
+        // Initial:
+        // 12:14:55
+        //
+        // after 5 seconds:
+        // 12:15:00
+        //
+        // alarm should trigger
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Waiting for alarm...");
+
+        #(CLK_FREQ_SIM * 20 * 6);
+
+        $display("Clock = %02d:%02d:%02d",
+                 dut.hours,
+                 dut.minutes,
+                 dut.seconds);
+
+        $display("Alarm Active = %b", dut.alarm_active);
+        $display("Buzzer       = %b", buzzer);
+        $display("Alarm LED    = %b", alarm_led);
+
+        // -----------------------------------------------------
+        // Stop alarm
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Pressing STOP button");
+
+        press_stop;
+
+        #100;
+
+        $display("Alarm Active after STOP = %b",
+                 dut.alarm_active);
+
+        // -----------------------------------------------------
+        // Test MODE button
+        //
+        // NORMAL -> CLOCK HOUR
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing MODE button");
+
+        press_mode;
+
+        #100;
+
+        $display("Mode = %d", dut.mode);
+
+        // -----------------------------------------------------
+        // Test clock hour increment
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing CLOCK HOUR +");
+
+        press_up;
+
+        #100;
+
+        $display("Clock Hours = %d", dut.hours);
+
+        // -----------------------------------------------------
+        // CLOCK HOUR -> CLOCK MINUTE
+        // -----------------------------------------------------
+
+        press_mode;
+
+        #100;
+
+        $display("Mode = %d", dut.mode);
+
+        // -----------------------------------------------------
+        // Test minute increment
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing CLOCK MINUTE +");
+
+        press_up;
+
+        #100;
+
+        $display("Clock Minutes = %d", dut.minutes);
+
+        // -----------------------------------------------------
+        // CLOCK MINUTE -> ALARM HOUR
+        // -----------------------------------------------------
+
+        press_mode;
+
+        #100;
+
+        $display("Mode = %d", dut.mode);
+
+        // -----------------------------------------------------
+        // Test alarm hour
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing ALARM HOUR +");
+
+        press_up;
+
+        #100;
+
+        $display("Alarm Hours = %d",
+                 dut.alarm_hours);
+
+        // -----------------------------------------------------
+        // ALARM HOUR -> ALARM MINUTE
+        // -----------------------------------------------------
+
+        press_mode;
+
+        #100;
+
+        $display("Mode = %d", dut.mode);
+
+        // -----------------------------------------------------
+        // Test alarm minute
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing ALARM MINUTE +");
+
+        press_up;
+
+        #100;
+
+        $display("Alarm Minutes = %d",
+                 dut.alarm_minutes);
+
+        // -----------------------------------------------------
+        // Return to NORMAL
+        // -----------------------------------------------------
+
+        press_mode;
+
+        #100;
+
+        $display("----------------------------------------------");
+        $display("Returned to NORMAL mode");
+        $display("Mode = %d", dut.mode);
+
+        // -----------------------------------------------------
+        // Test alarm ON/OFF
+        // -----------------------------------------------------
+
+        $display("----------------------------------------------");
+        $display("Testing ALARM ON/OFF");
+
+        press_alarm;
+
+        #100;
+
+        $display("Alarm Enable = %b",
+                 dut.alarm_enable);
+
+        press_alarm;
+
+        #100;
+
+        $display("Alarm Enable = %b",
+                 dut.alarm_enable);
+
+        // -----------------------------------------------------
+        // Finish
+        // -----------------------------------------------------
+
+        #500;
+
+        $display("==============================================");
+        $display("DIGITAL CLOCK TEST FINISHED");
+        $display("==============================================");
+
+        $finish;
+
+    end
+
+    // =========================================================
+    // Monitor
+    // =========================================================
+    initial begin
+
+        $monitor(
+            "TIME=%02d:%02d:%02d | ALARM=%02d:%02d | MODE=%d | EN=%b | ACTIVE=%b | BUZZER=%b",
+            dut.hours,
+            dut.minutes,
+            dut.seconds,
+            dut.alarm_hours,
+            dut.alarm_minutes,
+            dut.mode,
+            dut.alarm_enable,
+            dut.alarm_active,
+            buzzer
+        );
+
+    end
+
+endmodule
